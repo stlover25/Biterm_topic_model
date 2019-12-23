@@ -1,0 +1,101 @@
+
+
+##########Biterm Topic Model
+
+import numpy as np
+from sklearn.feature_extraction.text import CountVectorizer
+from biterm.btm import oBTM
+import nltk
+nltk.download('punkt')
+from nltk import word_tokenize
+import tokenizer
+
+
+##########Dataframe normalization
+from nltk.tokenize import RegexpTokenizer
+from nltk.stem.porter import PorterStemmer
+from nltk import sent_tokenize
+from stop_words import get_stop_words
+from nltk.stem import WordNetLemmatizer
+from tokenizer import tokenize, TOK
+
+from nltk.tokenize import word_tokenize 
+
+#After Rake algorithm, top vocabulary
+words1 = [] #1029가 주요 분석할 단어집이라고 보면 된다. 
+with open("C:/Users/isl_1003/text.txt", encoding='unicode_escape') as f:
+    for line in f:
+        for word in line.split():
+            words1.append(word) 
+f.close()
+
+def preprocessing_unigram(text1):  
+    text=[]
+    for i in text1:       
+        # tokenization / 해당 데이터를 사용하고자 하는 용도에 맞게 토큰화 혹은 정제하는 일이다. 
+        raw = i.lower()
+        tokens = word_tokenize(raw) #raw데이터를 띄어쓰기, 쉼표, 특수문자에 따라서 나눈 것 #from nltk.tokenize import word_tokenize 
+        #tokens1 = [n.lemmatize(w) for w in tokens]
+        
+
+        # meaningful words에 있는 것만 솎아낸 단어들, ['siri', 'today', 'understood', (...)로 저장이 된다. ]
+        stopped_tokens = [i for i in tokens if i in words1]
+        stopped_tokens1 = ','.join(stopped_tokens)
+        #number
+        #number_tokens = [i for i in stopped_tokens_1 if not type(i)==f]
+        
+        #more than 2 characters 2개 이하의 알파벳으로 구성된 단어 제거 
+        #stopped_tokens_2 = [i for i in stopped_tokens_1 if not len(i)<3]
+        
+        # stem tokens
+        #stemmed_tokens = [p_stemmer.stem(i) for i in stopped_tokens_2]
+        
+        # list에 저장
+        text.append(stopped_tokens1)
+    
+    return text
+
+################################
+a = pd.read_csv("reviews_positive.csv")
+b = pd.read_csv("reviews_negative.csv")
+
+all1 = pd.concat([a,b])
+all1.to_csv("reviews_all.csv")
+all1.head()
+
+all1 = pd.read_csv("reviews_all.csv")
+all2 = all1['comment'].tolist() #Series to list
+
+text = preprocessing_unigram(all2)
+vec = CountVectorizer() #sklearn.feature_extraction.text.CountVectorizer
+#X의 data form #array([[0, 0, 0, ..., 0, 0, 0],... dtype=int64)
+X = vec.fit_transform(text).toarray() 
+
+################################
+##biterm을 window size로 구하기 위해서####
+
+
+from itertools import islice, combinations, chain
+def window(seq, n=2):
+    "Returns a sliding window (of width n) over data from the iterable"
+    "   s -> (s0,s1,...s[n-1]), (s1,s2,...,sn), ...                   "
+    it = iter(seq)
+    result = tuple(islice(it, n))
+    if len(result) == n:
+        yield result    
+    for elem in it:
+       result = result[1:] + (elem,)
+       yield result
+
+biterms = []
+for nodes in X_ids:#X_id에는 문장들이 vocab의 단어들로 표현됨.
+    windowed = window(nodes,3)
+    intermediate_list = (combinations(item,2) for item in windowed)
+    edges = list(set(chain.from_iterable(intermediate_list)))
+    biterms.append(edges)
+    
+    
+btm = oBTM(num_topics=30, V=vocab)
+topics = btm.fit_transform(biterms, iterations=1000)
+
+
